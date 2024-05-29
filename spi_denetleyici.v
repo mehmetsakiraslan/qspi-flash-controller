@@ -23,20 +23,6 @@ module spi_denetleyici (
    output spi_sck_o
 );
    
-// // Yazmac adresleri
-   // localparam [7:0]
-   // QSPI_CCR = 8'h00,
-   // QSPI_ADR = 8'h04,
-   // QSPI_DR0 = 8'h08,
-   // QSPI_DR1 = 8'h0c,
-   // QSPI_DR2 = 8'h10,
-   // QSPI_DR3 = 8'h14,
-   // QSPI_DR4 = 8'h18,
-   // QSPI_DR5 = 8'h1c,
-   // QSPI_DR6 = 8'h20,
-   // QSPI_DR7 = 8'h24,
-   // QSPI_STA = 8'h28;
-   
    // Durum makinesi parametreleri
    localparam [4:0]
    IDLE  = 5'b00001,
@@ -145,9 +131,10 @@ module spi_denetleyici (
       end
    end
 
-   assign io_qspi_data = data_mod==2'b11 ? t_buffer[31:28] : 
-                         data_mod==2'b10 ? {t_buffer[31:30],2'bZZ} : 
-                         data_mod==2'b01 ? {2'b11,1'bZ, t_buffer[31]} : 4'bZZZZ;
+   reg [1:0] out_mod;
+   assign io_qspi_data = out_mod==2'b11 ? t_buffer[31:28] : 
+                         out_mod==2'b10 ? {t_buffer[31:30],2'bZZ} : 
+                         out_mod==2'b01 ? {2'b11,1'bZ, t_buffer[31]} : 4'bZZZZ;
 
    always @(posedge clk_i) begin
       if(rst_i) begin
@@ -157,6 +144,7 @@ module spi_denetleyici (
          t_buffer <= 0;
          r_buffer <= 0;
          ack <= 0;
+         out_mod <= 2'b01;
       end
       else if (clock_en) begin
          case(state)
@@ -177,8 +165,17 @@ module spi_denetleyici (
                bit_ctr <= bit_ctr - 1;
                inst_flag <= 0;
                if(bit_ctr==1) begin
-                  state <= DUMMY;
-                  bit_ctr <= dummy_cycles;
+                  out_mod <= (write_flash) ? 2'b00 : data_mod;
+                  if(dummy_cycles!=0) begin
+                     state <= DUMMY;
+                     bit_ctr <= dummy_cycles;
+                  end
+                  else begin
+                     state <= (write_flash) ? WRITE : READ;
+                     bit_ctr <= data_size;
+                     word_ctr <= 1;
+                     t_buffer <= control_register_r[2];
+                  end
                end
             end
          end
@@ -209,6 +206,7 @@ module spi_denetleyici (
                ack <= 1;
                state <= IDLE;
                bit_ctr <= 0;
+               out_mod <= 2'b01;
             end
          end
 
@@ -231,6 +229,7 @@ module spi_denetleyici (
                ack <= 1;
                state <= IDLE;
                bit_ctr <= 0;
+               out_mod <= 2'b01;
             end
          end
          
@@ -238,19 +237,9 @@ module spi_denetleyici (
       end   
    end
 
-   // Control sck and cs
+   // // Control sck and cs
    assign spi_cs_o = (state!=IDLE) || (state==IDLE && new_inst);
-   reg sck;
-   assign spi_sck_o = (prescale==0) ? clk_i : sck && (state!=IDLE);
-
-   always @(posedge clk_i) begin
-      if(rst_i) begin
-         sck <= 0;
-      end
-      else begin
-         if(clock_en)
-            sck <= ~sck;     
-      end
-   end
+   // reg sck;
+   assign spi_sck_o = (prescale==0) ? clk_i&&(state!=IDLE) : clock_en&&(state!=IDLE);
 
 endmodule
