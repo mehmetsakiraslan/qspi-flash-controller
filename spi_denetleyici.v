@@ -165,14 +165,14 @@ module spi_denetleyici (
                bit_ctr <= bit_ctr - 1;
                inst_flag <= 0;
                if(bit_ctr==1) begin
-                  out_mod <= (write_flash) ? 2'b00 : data_mod;
+                  out_mod <= (!write_flash) ? 2'b00 : data_mod;
                   if(dummy_cycles!=0) begin
                      state <= DUMMY;
                      bit_ctr <= dummy_cycles;
                   end
                   else begin
                      state <= (write_flash) ? WRITE : READ;
-                     bit_ctr <= data_size;
+                     bit_ctr <= (data_size+1)<<3;
                      word_ctr <= 1;
                      t_buffer <= control_register_r[2];
                   end
@@ -216,7 +216,7 @@ module spi_denetleyici (
                sr: r_buffer <= {r_buffer, io_qspi_data[0]};
                dr: r_buffer <= {r_buffer, io_qspi_data[1:0]};
                qr: r_buffer <= {r_buffer, io_qspi_data[3:0]};
-               default: r_buffer <= {r_buffer, io_qspi_data[1:0]};
+               default: r_buffer <= {r_buffer, io_qspi_data[0]};
                endcase
                bit_ctr <= bit_ctr - data_rate;
 
