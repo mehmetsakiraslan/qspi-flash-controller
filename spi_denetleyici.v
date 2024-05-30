@@ -1,6 +1,5 @@
 // spi_denetleyici.v
-`timescale 1ns / 1ps
-
+`timescale 1ps / 1ps
 
 // Not: Flashin 0. adresinde calismiyor. Register eklenerek duzeltilebilir.ack
 
@@ -134,7 +133,7 @@ module spi_denetleyici (
    reg [1:0] out_mod;
    assign io_qspi_data = out_mod==2'b11 ? t_buffer[31:28] : 
                          out_mod==2'b10 ? {t_buffer[31:30],2'bZZ} : 
-                         out_mod==2'b01 ? {2'b11,1'bZ, t_buffer[31]} : 4'bZZZZ;
+                         out_mod==2'b01 ? {3'bZZZ, t_buffer[31]} : 4'bZZZZ;
 
    always @(posedge clk_i) begin
       if(rst_i) begin
@@ -238,7 +237,7 @@ module spi_denetleyici (
    end
 
    // // Control sck and cs
-   assign spi_cs_o = (state!=IDLE) || (state==IDLE && new_inst);
+   assign spi_cs_o = (state==IDLE); //|| (state==IDLE && new_inst);
    // reg sck;
    assign spi_sck_o = (prescale==0) ? clk_i&&(state!=IDLE) : clock_en&&(state!=IDLE);
 
